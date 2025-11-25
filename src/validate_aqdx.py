@@ -112,7 +112,7 @@ class GeoLogicCheck(Check):
 
         in_bounds = (MIN_LAT <= lat_f <= MAX_LAT) and (MIN_LON <= lon_f <= MAX_LON)
 
-        if not in_bounds:
+        if not in_bounds: ## TODO: chang print to yield a warning-level error  
             # Check if swapped
             swapped_ok = (MIN_LAT <= lon_f <= MAX_LAT) and (MIN_LON <= lat_f <= MAX_LON)
 
@@ -146,8 +146,6 @@ def main():
         data_file_path = os.path.relpath(path_obj, os.getcwd())
     except ValueError:
         data_file_path = str(path_obj)
-
-    print(f"DEBUG: Validating File (Relative): {data_file_path}")
 
     if not path_obj.exists():
         print(f"\nError: File not found: {str(path_obj)}")
