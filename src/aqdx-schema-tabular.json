@@ -87,7 +87,7 @@
             "example": "88501",
             "constraints": {
                 "required": true,
-                "pattern": "^[0-9]{5}$"
+                "pattern": "^[0-9]{1,5}$"
             }
         },
         {
@@ -97,13 +97,13 @@
             "example": "150",
             "constraints": {
                 "required": true,
-                "pattern": "^[0-9]{3}$"
+                "pattern": "^[0-9]{1,3}$"
             }
         },
         {
             "name": "value",
             "type": "number",
-            "description": "Measured value. Decimal(9,5) (-9999.99999 to 9999.99999).",
+            "description": "Measured value. Decimal(12,5).",
             "example": "10.2",
             "decimalPrecision": 12,
             "decimalScale": 5,
@@ -118,7 +118,7 @@
             "example": "105",
             "constraints": {
                 "required": true,
-                "pattern": "^[0-9]{3}$"
+                "pattern": "^[0-9]{1,3}$"
             }
         },
         {
