@@ -1,6 +1,7 @@
 import os
 import sys
 from decimal import Decimal, InvalidOperation
+from pathlib import Path
 
 from frictionless import Check, Schema, errors, validate
 
@@ -41,6 +42,12 @@ class DecimalPrecisionCheck(Check):
 
             max_prec = field.constraints.get("decimalPrecision")
             max_scale = field.constraints.get("decimalScale")
+
+            if max_prec is None:
+                max_prec = field.custom.get("decimalPrecision")
+            if max_scale is None:
+                max_scale = field.custom.get("decimalScale")
+
             if not max_prec or not max_scale:
                 continue
 
@@ -125,11 +132,18 @@ def main():
 
     if len(sys.argv) < 2:
         print("\nUsage: Drag and drop your CSV/XLSX file onto this executable.")
+        print("       OR run from command line: validate_aqdx.exe <filename>")
         input("\nPress Enter to exit...")
         sys.exit(1)
 
-    data_file = sys.argv[1]
-    schema_file = get_resource_path("aqdx-schema.json")
+    # --- FIX: Handle Windows Paths for Frictionless ---
+    # 1. Get raw argument
+    raw_path = sys.argv[1]
+    # 2. Resolve to absolute path (handles relative paths like 'test_files/file.csv')
+    # 3. Convert to POSIX style (forward slashes) to prevent "scheme" errors in Frictionless
+    data_file = Path(raw_path).resolve().as_posix()
+
+    schema_file = get_resource_path("aqdx-schema-tabular.json")
 
     if not os.path.exists(data_file):
         print(f"\nError: File not found: {data_file}")
@@ -145,7 +159,10 @@ def main():
     print("Processing...")
 
     try:
+        # Load schema
         schema = Schema.from_descriptor(schema_file)
+        
+        # Run validation
         report = validate(
             data_file, schema=schema, checks=[DecimalPrecisionCheck(), GeoLogicCheck()]
         )
@@ -157,29 +174,48 @@ def main():
             print(f"✘ FAILURE: {report.stats['errors']} error(s) found.")
             print("-" * 60)
 
-            error_list = report.flatten(
-                ["rowNumber", "fieldNumber", "fieldName", "code", "message"]
-            )
-            print(f"{'Row':<5} | {'Field':<15} | {'Error Code':<25} | {'Message'}")
-            print("-" * 90)
+            # 1. CRITICAL SOURCE ERRORS (File couldn't be read)
+            if report.errors:
+                print("CRITICAL FILE ERRORS:")
+                for err in report.errors:
+                    print(f" - Error Code: {err.code}")
+                    print(f" - Message:    {err.message}")
+                    if err.note:
+                        print(f" - Note:       {err.note}")
+                print("-" * 90)
 
-            count = 0
-            for err in error_list:
-                count += 1
-                row = str(err[0]) if err[0] else "-"
-                field = str(err[2]) if err[2] else "-"
-                code = str(err[3])
-                msg = str(err[4])
-                if len(msg) > 60:
-                    msg = msg[:57] + "..."
-                print(f"{row:<5} | {field:<15} | {code:<25} | {msg}")
+            # 2. VALIDATION ERRORS (Row-level issues)
+            elif report.tasks:
+                print(f"{'Row':<5} | {'Field':<15} | {'Error Code':<25} | {'Message'}")
+                print("-" * 90)
 
-                if count >= 50:
-                    print("\n... (Display stopped after 50 errors)")
-                    break
+                count = 0
+                # Flatten errors from the first task (table)
+                error_list = report.tasks[0].flatten(
+                    ["rowNumber", "fieldNumber", "fieldName", "code", "message"]
+                )
+
+                for err in error_list:
+                    count += 1
+                    # Handle None values gracefully
+                    row = str(err[0]) if err[0] is not None else "-"
+                    # Field might be None for general errors, or missing fieldName
+                    field = str(err[2]) if err[2] else str(err[1]) if err[1] else "-"
+                    code = str(err[3])
+                    msg = str(err[4])
+
+                    # Truncate long messages
+                    if len(msg) > 60:
+                        msg = msg[:57] + "..."
+
+                    print(f"{row:<5} | {field:<15} | {code:<25} | {msg}")
+
+                    if count >= 50:
+                        print("\n... (Display stopped after 50 errors)")
+                        break
 
     except Exception as e:
-        print(f"\nCRITICAL ERROR: {e}")
+        print(f"\nCRITICAL UNHANDLED ERROR: {e}")
         import traceback
 
         traceback.print_exc()

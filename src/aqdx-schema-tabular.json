@@ -48,12 +48,12 @@
             "type": "number",
             "description": "Latitude (Decimal Degrees). Max precision 9, scale 5.",
             "example": "30.06111",
+            "decimalPrecision": 9,
+            "decimalScale": 5,
             "constraints": {
                 "required": true,
                 "minimum": "-90",
-                "maximum": "90",
-                "decimalPrecision": 9,
-                "decimalScale": 5
+                "maximum": "90"
             }
         },
         {
@@ -61,12 +61,12 @@
             "type": "number",
             "description": "Longitude (Decimal Degrees). Max precision 9, scale 5.",
             "example": "-89.94084",
+            "decimalPrecision": 9,
+            "decimalScale": 5,
             "constraints": {
                 "required": true,
                 "minimum": "-180",
-                "maximum": "180",
-                "decimalPrecision": 9,
-                "decimalScale": 5
+                "maximum": "180"
             }
         },
         {
@@ -74,10 +74,10 @@
             "type": "number",
             "description": "Measurement duration in seconds.",
             "example": "3600",
+            "decimalPrecision": 9,
+            "decimalScale": 3,
             "constraints": {
-                "required": true,
-                "decimalPrecision": 9,
-                "decimalScale": 3
+                "required": true
             }
         },
         {
@@ -105,10 +105,10 @@
             "type": "number",
             "description": "Measured value. Decimal(9,5) (-9999.99999 to 9999.99999).",
             "example": "10.2",
+            "decimalPrecision": 12,
+            "decimalScale": 5,
             "constraints": {
-                "required": true,
-                "decimalPrecision": 12,
-                "decimalScale": 5
+                "required": true
             }
         },
         {
@@ -185,10 +185,10 @@
             "type": "number",
             "description": "Elevation in meters.",
             "example": "3.2",
+            "decimalPrecision": 8,
+            "decimalScale": 2,
             "constraints": {
-                "required": false,
-                "decimalPrecision": 8,
-                "decimalScale": 2
+                "required": false
             }
         }
     ]
