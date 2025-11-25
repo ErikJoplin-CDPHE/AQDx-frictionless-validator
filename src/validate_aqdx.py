@@ -1,9 +1,11 @@
+
+import json
 import os
 import sys
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
-from frictionless import Check, Schema, errors, validate
+from frictionless import Check, Resource, Schema, errors, validate
 
 
 def get_resource_path(relative_path):
@@ -126,42 +128,33 @@ class GeoLogicCheck(Check):
 
 # --- Main ---
 def main():
-    import json
-
     print("-" * 60)
     print("   AQDx Local Validator Tool (v1.0)")
     print("-" * 60)
 
     if len(sys.argv) < 2:
-        print("\nUsage: Drag and drop your CSV/XLSX file onto this executable.")
+        print("\nUsage: Drag and drop your data file onto this executable.")
         print("       OR run from command line: validate_aqdx.exe <filename>")
         input("\nPress Enter to exit...")
         sys.exit(1)
 
+    # 1. Path Resolution (Fixes Windows absolute path safety issues)
     raw_path = sys.argv[1]
     path_obj = Path(raw_path).resolve()
 
-    # --- FIX: Use Relative Path to bypass "Path is not safe" error ---
-    # Frictionless rejects absolute paths on Windows (e.g. C:\Users\...) as "unsafe".
-    # We must convert it to a relative path from the current working directory.
     try:
-        # Get path relative to where the script/exe is running
         data_file_path = os.path.relpath(path_obj, os.getcwd())
     except ValueError:
-        # Fallback: If file is on a different drive, we must use absolute path.
-        # This is rare for drag-and-drop usage.
         data_file_path = str(path_obj)
 
     print(f"DEBUG: Validating File (Relative): {data_file_path}")
 
-    schema_file = get_resource_path("aqdx-schema-tabular.json")
-
-    # Check existence using the absolute path object (safe)
     if not path_obj.exists():
         print(f"\nError: File not found: {str(path_obj)}")
         input("\nPress Enter to exit...")
         sys.exit(1)
 
+    schema_file = get_resource_path("aqdx-schema-tabular.json")
     if not os.path.exists(schema_file):
         print(f"\nCRITICAL: Bundled schema not found at {schema_file}")
         input("\nPress Enter to exit...")
@@ -171,14 +164,41 @@ def main():
     print("Processing...")
 
     try:
-        # 1. Load schema contents (bypasses schema path safety checks)
+        # 2. Read Actual Headers (Format-Agnostic)
+        actual_headers = []
+        try:
+            # Resource() auto-detects format (CSV, XLSX, Parquet) based on extension
+            with Resource(data_file_path) as resource:
+                # Opening the resource parses the file structure and extracts headers
+                actual_headers = resource.header
+        except Exception:
+            # If header reading fails (e.g. corrupt file), we default to empty.
+            # The main validate() step later will catch and report the specific format error.
+            pass
+
+        # 3. Load and Filter Schema
         with open(schema_file, "r", encoding="utf-8") as f:
             schema_descriptor = json.load(f)
 
+        final_fields = []
+        for field in schema_descriptor.get("fields", []):
+            name = field.get("name")
+            constraints = field.get("constraints", {})
+            is_required = constraints.get("required", False)
+
+            # Logic: Keep field if it exists in file OR if it is mandatory
+            if name in actual_headers:
+                final_fields.append(field)
+            elif is_required:
+                final_fields.append(field)  # Kept to trigger "missing-label" error
+
+            # Else: Field is optional AND missing -> Dropped from schema
+
+        # Update descriptor with filtered fields
+        schema_descriptor["fields"] = final_fields
         schema = Schema.from_descriptor(schema_descriptor)
 
-        # 2. Pass the RELATIVE path string to validate()
-        #    This avoids the 'trusted' keyword error and the 'not safe' path error.
+        # 4. Run Validation
         report = validate(
             data_file_path,
             schema=schema,
