@@ -5,196 +5,177 @@ from decimal import Decimal, InvalidOperation
 from frictionless import Check, Schema, errors, validate
 
 
-# --- 1. Helper for PyInstaller Resource Handling ---
 def get_resource_path(relative_path):
-    """
-    Get absolute path to resource, works for dev and for PyInstaller.
-
-    If running as a compiled exe, PyInstaller stores data in sys._MEIPASS.
-    If running as a script, we look in the same directory as this file.
-    """
     if getattr(sys, "frozen", False):
         base_path = sys._MEIPASS
     else:
         base_path = os.path.dirname(os.path.abspath(__file__))
-
     return os.path.join(base_path, relative_path)
 
 
-# --- 2. Custom AQDx Check Implementation ---
+# --- Custom Errors ---
 class DecimalPrecisionError(errors.CellError):
-    """
-    Custom error to report when a number fails precision/scale checks.
-    """
-
     code = "decimal-precision-error"
     name = "Decimal Precision Error"
     tags = ["#body"]
     template = "Value {value} does not match Decimal({precision}, {scale}). {note}"
-    description = "The value must match the specified decimal precision and scale."
+    description = "Value exceeds defined decimal precision or scale."
 
 
+class NullIslandError(errors.RowError):
+    code = "null-island-error"
+    name = "Null Island Coordinates"
+    tags = ["#body"]
+    template = "Coordinates are exactly (0,0)."
+    description = "Lat/Lon cannot be (0,0)."
+
+
+# --- Custom Checks ---
 class DecimalPrecisionCheck(Check):
-    """
-    Reads 'decimalPrecision' and 'decimalScale' from field constraints
-    and validates numeric values against them.
-    """
-
     Errors = [DecimalPrecisionError]
 
     def validate_row(self, row):
         for field in self.resource.schema.fields:
-            # Optimization: skip if not a number or no constraints exist
             if field.type != "number" or not field.constraints:
                 continue
 
-            # Retrieve the custom constraints from the schema
-            max_precision = field.constraints.get("decimalPrecision")
+            max_prec = field.constraints.get("decimalPrecision")
             max_scale = field.constraints.get("decimalScale")
-
-            # If the schema doesn't have these keys, skip this field
-            if not max_precision or not max_scale:
+            if not max_prec or not max_scale:
                 continue
 
-            value = row[field.name]
-
-            # Skip nulls (standard 'required' check handles missing values)
-            if value is None:
+            val = row[field.name]
+            if val is None:
                 continue
 
             try:
-                # Convert to Decimal for accurate digit counting
-                # We use str(value) because float conversion can introduce artifacts
-                d = Decimal(str(value))
-
-                # Get tuple of digits (sign, digits, exponent)
+                d = Decimal(str(val))
                 dt = d.as_tuple()
-
-                # Exponent is negative for decimals (e.g., 0.12 -> exp -2)
-                exponent = dt.exponent
-                scale = abs(exponent) if exponent < 0 else 0
-
-                # Number of significant digits
+                scale = abs(dt.exponent) if dt.exponent < 0 else 0
                 num_digits = len(dt.digits)
+                int_part = max(0, num_digits - scale)
 
-                # Calculate integer part length
-                # For 0.123, digits=(1,2,3) len=3, scale=3 -> int_part=0
-                # For 10.5, digits=(1,0,5) len=3, scale=1 -> int_part=2
-                int_part_len = num_digits - scale
-                if int_part_len < 0:
-                    int_part_len = 0
-
-                # Precision = integer digits + scale (SQL definition)
-                actual_precision = int_part_len + scale
-
-                # --- The Checks ---
-
-                # 1. Check Scale (digits to the right)
                 if scale > max_scale:
                     yield DecimalPrecisionError.from_row(
                         row,
-                        note=f"Scale is {scale}, max allowed is {max_scale}.",
+                        note=f"Scale {scale} > {max_scale}",
                         field_name=field.name,
-                        value=value,
-                        precision=max_precision,
+                        value=val,
+                        precision=max_prec,
                         scale=max_scale,
                     )
-
-                # 2. Check Precision (total digits)
-                elif actual_precision > max_precision:
+                elif (int_part + scale) > max_prec:
                     yield DecimalPrecisionError.from_row(
                         row,
-                        note=f"Total precision is {actual_precision}, max allowed is {max_precision}.",
+                        note=f"Precision {int_part + scale} > {max_prec}",
                         field_name=field.name,
-                        value=value,
-                        precision=max_precision,
+                        value=val,
+                        precision=max_prec,
                         scale=max_scale,
                     )
-
             except (ValueError, InvalidOperation):
-                # If it's not a valid number, standard frictionless type checking
-                # will catch it, so we pass silently here.
                 pass
 
 
-# --- 3. Main Execution Logic ---
-def main():
-    print("------------------------------------------------------------")
-    print("   AQDx Validator Tool (v1.0)")
-    print("------------------------------------------------------------")
+class GeoLogicCheck(Check):
+    Errors = [NullIslandError]
 
-    # Check for arguments (Drag and Drop provides the file path as arg 1)
+    def validate_row(self, row):
+        lat = row.get("lat")
+        lon = row.get("lon")
+        if lat is None or lon is None:
+            return
+
+        try:
+            lat_f = float(lat)
+            lon_f = float(lon)
+        except (ValueError, TypeError):
+            return
+
+        # 1. Error on Null Island (0,0)
+        if lat_f == 0.0 and lon_f == 0.0:
+            yield NullIslandError.from_row(row, note="")
+            return
+
+        # 2. Warning on Bounds (Continental US: 24N to 50N, 125W to 66W)
+        MIN_LAT, MAX_LAT = 24.0, 50.0
+        MIN_LON, MAX_LON = -125.0, -66.0
+
+        in_bounds = (MIN_LAT <= lat_f <= MAX_LAT) and (MIN_LON <= lon_f <= MAX_LON)
+
+        if not in_bounds:
+            # Check if swapped
+            swapped_ok = (MIN_LAT <= lon_f <= MAX_LAT) and (MIN_LON <= lat_f <= MAX_LON)
+
+            print(
+                f"\n⚠️  WARNING (Row {row.row_number}): Location {lat_f}, {lon_f} outside US bounds."
+            )
+            if swapped_ok:
+                print(f"    POSSIBLE SWAP DETECTED. Did you mean: {lon_f}, {lat_f}?")
+            print(
+                f"    Verify: https://www.google.com/maps/search/?api=1&query={lat_f},{lon_f}"
+            )
+
+
+# --- Main ---
+def main():
+    print("-" * 60)
+    print("   AQDx Local Validator Tool (v1.0)")
+    print("-" * 60)
+
     if len(sys.argv) < 2:
-        print("\nUsage: Drag and drop your CSV file onto this executable.")
-        print("       OR run from command line: validate_aqdx.exe <filename>")
+        print("\nUsage: Drag and drop your CSV/XLSX file onto this executable.")
         input("\nPress Enter to exit...")
         sys.exit(1)
 
     data_file = sys.argv[1]
-
-    # Use our helper to find the bundled schema file
-    # We assume the file is named 'aqdx-schema.json' in the root of the bundle
-    # (See pyinstaller --add-data command in build.yml)
     schema_file = get_resource_path("aqdx-schema.json")
 
-    # Validate input file existence
     if not os.path.exists(data_file):
-        print(f"\nError: Data file not found: {data_file}")
+        print(f"\nError: File not found: {data_file}")
         input("\nPress Enter to exit...")
         sys.exit(1)
 
-    # Validate schema file existence (Critical check for bundled files)
     if not os.path.exists(schema_file):
-        print("\nCRITICAL ERROR: Schema file not found inside bundle.")
-        print(f"Expected at: {schema_file}")
+        print(f"\nCRITICAL: Bundled schema not found at {schema_file}")
         input("\nPress Enter to exit...")
         sys.exit(1)
 
-    print(f"\nValidating file: {os.path.basename(data_file)}")
-    # print(f"Using schema:    {schema_file}") # Debugging line, hidden for user clarity
-    print("\nProcessing... please wait.")
+    print(f"\nValidating: {os.path.basename(data_file)}")
+    print("Processing...")
 
     try:
-        # Load schema
         schema = Schema.from_descriptor(schema_file)
+        report = validate(
+            data_file, schema=schema, checks=[DecimalPrecisionCheck(), GeoLogicCheck()]
+        )
 
-        # Run validation with our custom check
-        report = validate(data_file, schema=schema, checks=[DecimalPrecisionCheck()])
-
-        print("------------------------------------------------------------")
+        print("-" * 60)
         if report.valid:
-            print("✔ SUCCESS: The file is valid AQDx format!")
+            print("✔ SUCCESS: File is valid AQDx format!")
         else:
-            print(f"✘ FAILURE: Found {report.stats['errors']} error(s).")
-            print("------------------------------------------------------------")
+            print(f"✘ FAILURE: {report.stats['errors']} error(s) found.")
+            print("-" * 60)
 
-            # Print readable error table
-            # We flatten the report to get a simple list of errors
             error_list = report.flatten(
                 ["rowNumber", "fieldNumber", "fieldName", "code", "message"]
             )
-
-            # simple format for console output
             print(f"{'Row':<5} | {'Field':<15} | {'Error Code':<25} | {'Message'}")
             print("-" * 90)
 
             count = 0
             for err in error_list:
                 count += 1
-                # Extract values (handling potential None values safely)
                 row = str(err[0]) if err[0] else "-"
                 field = str(err[2]) if err[2] else "-"
                 code = str(err[3])
                 msg = str(err[4])
-
-                # Truncate long messages for cleaner CLI display
                 if len(msg) > 60:
                     msg = msg[:57] + "..."
-
                 print(f"{row:<5} | {field:<15} | {code:<25} | {msg}")
 
                 if count >= 50:
-                    print("\n... (Stopping display after 50 errors)")
+                    print("\n... (Display stopped after 50 errors)")
                     break
 
     except Exception as e:
@@ -203,8 +184,7 @@ def main():
 
         traceback.print_exc()
 
-    print("------------------------------------------------------------")
-    # Keep window open for user to read results (essential for double-click usage)
+    print("-" * 60)
     input("\nPress Enter to close...")
 
 
