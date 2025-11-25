@@ -1,0 +1,5 @@
+name: AQDx-frictionless-validator
+channels:
+  - conda-forge
+dependencies:
+  - frictionless

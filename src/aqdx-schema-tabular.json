@@ -1,0 +1,192 @@
+{
+    "fields": [
+        {
+            "name": "data_steward_name",
+            "type": "string",
+            "description": "Name of the party responsible for data oversight. Use PascalCase or snake_case.",
+            "example": "CleanAirVision",
+            "constraints": {
+                "required": true,
+                "maxLength": 64,
+                "pattern": "^([A-Z][a-zA-Z0-9]*|[a-z0-9_]+)$"
+            }
+        },
+        {
+            "name": "device_id",
+            "type": "string",
+            "description": "Unique identifier for the monitoring device.",
+            "example": "11402",
+            "constraints": {
+                "required": true,
+                "maxLength": 64
+            }
+        },
+        {
+            "name": "device_manufacturer_name",
+            "type": "string",
+            "description": "Name of the manufacturer of the monitoring device. Use PascalCase or snake_case.",
+            "example": "AirSensingLLC",
+            "constraints": {
+                "required": true,
+                "maxLength": 64,
+                "pattern": "^([A-Z][a-zA-Z0-9]*|[a-z0-9_]+)$"
+            }
+        },
+        {
+            "name": "datetime",
+            "type": "datetime",
+            "description": "Date and time in strict ISO 8601 format with timezone (YYYY-MM-DDThh:mm:ssTZD).",
+            "example": "2023-05-23T23:50:00-06:00",
+            "format": "%Y-%m-%dT%H:%M:%S%z",
+            "constraints": {
+                "required": true
+            }
+        },
+        {
+            "name": "lat",
+            "type": "number",
+            "description": "Latitude (Decimal Degrees). Max precision 9, scale 5.",
+            "example": "30.06111",
+            "constraints": {
+                "required": true,
+                "minimum": "-90",
+                "maximum": "90",
+                "decimalPrecision": 9,
+                "decimalScale": 5
+            }
+        },
+        {
+            "name": "lon",
+            "type": "number",
+            "description": "Longitude (Decimal Degrees). Max precision 9, scale 5.",
+            "example": "-89.94084",
+            "constraints": {
+                "required": true,
+                "minimum": "-180",
+                "maximum": "180",
+                "decimalPrecision": 9,
+                "decimalScale": 5
+            }
+        },
+        {
+            "name": "duration",
+            "type": "number",
+            "description": "Measurement duration in seconds.",
+            "example": "3600",
+            "constraints": {
+                "required": true
+            }
+        },
+        {
+            "name": "parameter_code",
+            "type": "string",
+            "description": "Five-digit AQS parameter code.",
+            "example": "88501",
+            "constraints": {
+                "required": true,
+                "pattern": "^[0-9]{5}$"
+            }
+        },
+        {
+            "name": "method_code",
+            "type": "string",
+            "description": "Three-digit AQS method code.",
+            "example": "150",
+            "constraints": {
+                "required": false,
+                "pattern": "^[0-9]{3}$"
+            }
+        },
+        {
+            "name": "value",
+            "type": "number",
+            "description": "Measured value. Decimal(9,5) (-9999.99999 to 9999.99999).",
+            "example": "10.2",
+            "constraints": {
+                "required": true,
+                "minimum": "-9999.99999",
+                "maximum": "9999.99999",
+                "decimalPrecision": 9,
+                "decimalScale": 5
+            }
+        },
+        {
+            "name": "unit_code",
+            "type": "string",
+            "description": "Three-digit AQS unit code.",
+            "example": "105",
+            "constraints": {
+                "required": true,
+                "pattern": "^[0-9]{3}$"
+            }
+        },
+        {
+            "name": "autoqc_check",
+            "type": "string",
+            "description": "Automated QC flag ('0' or '1').",
+            "example": "1",
+            "constraints": {
+                "required": true,
+                "enum": ["0", "1"]
+            }
+        },
+        {
+            "name": "corr_code",
+            "type": "string",
+            "description": "Correction/Calibration flag ('0' or '1').",
+            "example": "0",
+            "constraints": {
+                "required": true,
+                "enum": ["0", "1"]
+            }
+        },
+        {
+            "name": "review_level_code",
+            "type": "string",
+            "description": "Data review level code (single digit).",
+            "example": "1",
+            "constraints": {
+                "required": true,
+                "pattern": "^[0-9]$"
+            }
+        },
+        {
+            "name": "qc_code",
+            "type": "string",
+            "description": "AQS QC code.",
+            "example": "0",
+            "constraints": {
+                "required": false,
+                "maxLength": 16
+            }
+        },
+        {
+            "name": "qualifier_codes",
+            "type": "string",
+            "description": "AQS qualifier codes.",
+            "example": "1",
+            "constraints": {
+                "required": false,
+                "maxLength": 255
+            }
+        },
+        {
+            "name": "data_license_code",
+            "type": "string",
+            "description": "License code.",
+            "constraints": {
+                "required": false,
+                "maxLength": 16
+            }
+        },
+        {
+            "name": "elev",
+            "type": "number",
+            "description": "Elevation in meters.",
+            "example": "3.2",
+            "constraints": {
+                "required": false
+            }
+        }
+    ]
+}
