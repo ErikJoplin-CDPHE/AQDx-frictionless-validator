@@ -145,7 +145,7 @@ def main():
 
     # Validate schema file existence (Critical check for bundled files)
     if not os.path.exists(schema_file):
-        print(f"\nCRITICAL ERROR: Schema file not found inside bundle.")
+        print("\nCRITICAL ERROR: Schema file not found inside bundle.")
         print(f"Expected at: {schema_file}")
         input("\nPress Enter to exit...")
         sys.exit(1)
