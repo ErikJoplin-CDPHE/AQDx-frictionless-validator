@@ -18,7 +18,8 @@
             "example": "11402",
             "constraints": {
                 "required": true,
-                "maxLength": 64
+                "maxLength": 64,
+                "pattern": "^[^,.]+$"
             }
         },
         {
@@ -74,7 +75,9 @@
             "description": "Measurement duration in seconds.",
             "example": "3600",
             "constraints": {
-                "required": true
+                "required": true,
+                "decimalPrecision": 9,
+                "decimalScale": 3
             }
         },
         {
@@ -104,9 +107,7 @@
             "example": "10.2",
             "constraints": {
                 "required": true,
-                "minimum": "-9999.99999",
-                "maximum": "9999.99999",
-                "decimalPrecision": 9,
+                "decimalPrecision": 12,
                 "decimalScale": 5
             }
         },
@@ -147,7 +148,7 @@
             "example": "1",
             "constraints": {
                 "required": true,
-                "pattern": "^[0-9]$"
+                "enum": ["0", "1", "2", "3"]
             }
         },
         {
@@ -156,8 +157,8 @@
             "description": "AQS QC code.",
             "example": "0",
             "constraints": {
-                "required": false,
-                "maxLength": 16
+                "required": true,
+                "enum": ["0", "1", "7", "8", "9"]
             }
         },
         {
@@ -185,7 +186,9 @@
             "description": "Elevation in meters.",
             "example": "3.2",
             "constraints": {
-                "required": false
+                "required": false,
+                "decimalPrecision": 8,
+                "decimalScale": 2
             }
         }
     ]
