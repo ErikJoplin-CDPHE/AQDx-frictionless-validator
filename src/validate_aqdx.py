@@ -126,6 +126,8 @@ class GeoLogicCheck(Check):
 
 # --- Main ---
 def main():
+    import json
+
     print("-" * 60)
     print("   AQDx Local Validator Tool (v1.0)")
     print("-" * 60)
@@ -136,17 +138,27 @@ def main():
         input("\nPress Enter to exit...")
         sys.exit(1)
 
-    # --- FIX: Handle Windows Paths for Frictionless ---
-    # 1. Get raw argument
     raw_path = sys.argv[1]
-    # 2. Resolve to absolute path (handles relative paths like 'test_files/file.csv')
-    # 3. Convert to POSIX style (forward slashes) to prevent "scheme" errors in Frictionless
-    data_file = Path(raw_path).resolve().as_posix()
+    path_obj = Path(raw_path).resolve()
+
+    # --- FIX: Use Relative Path to bypass "Path is not safe" error ---
+    # Frictionless rejects absolute paths on Windows (e.g. C:\Users\...) as "unsafe".
+    # We must convert it to a relative path from the current working directory.
+    try:
+        # Get path relative to where the script/exe is running
+        data_file_path = os.path.relpath(path_obj, os.getcwd())
+    except ValueError:
+        # Fallback: If file is on a different drive, we must use absolute path.
+        # This is rare for drag-and-drop usage.
+        data_file_path = str(path_obj)
+
+    print(f"DEBUG: Validating File (Relative): {data_file_path}")
 
     schema_file = get_resource_path("aqdx-schema-tabular.json")
 
-    if not os.path.exists(data_file):
-        print(f"\nError: File not found: {data_file}")
+    # Check existence using the absolute path object (safe)
+    if not path_obj.exists():
+        print(f"\nError: File not found: {str(path_obj)}")
         input("\nPress Enter to exit...")
         sys.exit(1)
 
@@ -155,16 +167,22 @@ def main():
         input("\nPress Enter to exit...")
         sys.exit(1)
 
-    print(f"\nValidating: {os.path.basename(data_file)}")
+    print(f"\nValidating: {os.path.basename(data_file_path)}")
     print("Processing...")
 
     try:
-        # Load schema
-        schema = Schema.from_descriptor(schema_file)
-        
-        # Run validation
+        # 1. Load schema contents (bypasses schema path safety checks)
+        with open(schema_file, "r", encoding="utf-8") as f:
+            schema_descriptor = json.load(f)
+
+        schema = Schema.from_descriptor(schema_descriptor)
+
+        # 2. Pass the RELATIVE path string to validate()
+        #    This avoids the 'trusted' keyword error and the 'not safe' path error.
         report = validate(
-            data_file, schema=schema, checks=[DecimalPrecisionCheck(), GeoLogicCheck()]
+            data_file_path,
+            schema=schema,
+            checks=[DecimalPrecisionCheck(), GeoLogicCheck()],
         )
 
         print("-" * 60)
@@ -174,7 +192,6 @@ def main():
             print(f"✘ FAILURE: {report.stats['errors']} error(s) found.")
             print("-" * 60)
 
-            # 1. CRITICAL SOURCE ERRORS (File couldn't be read)
             if report.errors:
                 print("CRITICAL FILE ERRORS:")
                 for err in report.errors:
@@ -184,29 +201,21 @@ def main():
                         print(f" - Note:       {err.note}")
                 print("-" * 90)
 
-            # 2. VALIDATION ERRORS (Row-level issues)
             elif report.tasks:
                 print(f"{'Row':<5} | {'Field':<15} | {'Error Code':<25} | {'Message'}")
-                print("-" * 90)
+                print("-" * 120)
 
                 count = 0
-                # Flatten errors from the first task (table)
                 error_list = report.tasks[0].flatten(
                     ["rowNumber", "fieldNumber", "fieldName", "code", "message"]
                 )
 
                 for err in error_list:
                     count += 1
-                    # Handle None values gracefully
                     row = str(err[0]) if err[0] is not None else "-"
-                    # Field might be None for general errors, or missing fieldName
                     field = str(err[2]) if err[2] else str(err[1]) if err[1] else "-"
                     code = str(err[3])
                     msg = str(err[4])
-
-                    # Truncate long messages
-                    if len(msg) > 60:
-                        msg = msg[:57] + "..."
 
                     print(f"{row:<5} | {field:<15} | {code:<25} | {msg}")
 
