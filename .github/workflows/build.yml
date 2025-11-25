@@ -1,35 +1,37 @@
-name: Build AQDx Validator
+name: Build and Release AQDx Validator
 
 on:
+  # Trigger 1: Build & Test on every push to main (Continuous Integration)
   push:
     branches: [ "main" ]
-  workflow_dispatch:
+  
+  # Trigger 2: Build, Test, AND Release when a tag starting with 'v' is pushed
+  create:
+    tags:
+      - 'v*' 
 
 jobs:
   build:
+    name: Build for ${{ matrix.os }}
     strategy:
       matrix:
         include:
-          # Windows uses semicolon ; for add-data
           - os: windows-latest
-            asset_name: validate-AQDx-windows
-            artifact_name: validate-AQDx-windows.exe
+            asset_name: aqdx-validator-windows
+            artifact_name: aqdx-validator-windows.exe
             add_data: 'src/aqdx-schema.json;.' 
-            
-          # Linux uses colon : for add-data
+
           - os: ubuntu-latest
-            asset_name: validate-AQDx-linux
-            artifact_name: validate-AQDx-linux
+            asset_name: aqdx-validator-linux
+            artifact_name: aqdx-validator-linux
             add_data: 'src/aqdx-schema.json:.'
 
-          # Mac uses colon : for add-data
           - os: macos-latest
-            asset_name: validate-AQDx-macos
-            artifact_name: validate-AQDx-macos
+            asset_name: aqdx-validator-macos
+            artifact_name: aqdx-validator-macos
             add_data: 'src/aqdx-schema.json:.'
 
     runs-on: ${{ matrix.os }}
-    
     defaults:
       run:
         shell: bash -l {0}
@@ -42,21 +44,30 @@ jobs:
       with:
         environment-file: environment.yaml
         auto-activate-base: false
-        activate-environment: validate-AQDx
+        activate-environment: aqdx-validator
         miniforge-variant: Mambaforge
+
+    - name: Run Automated Tests
+      env:
+        PYTHONPATH: ${{ github.workspace }}
+      run: pytest tests/
 
     - name: Build with PyInstaller
       run: |
-        # We use the ${{ matrix.add_data }} variable to handle the OS differences
         pyinstaller --onefile --name ${{ matrix.asset_name }} --add-data "${{ matrix.add_data }}" src/validate_aqdx.py
 
-    - name: Prepare Artifacts
-      run: |
-        mkdir build_output
-        mv dist/${{ matrix.artifact_name }} build_output/
-
+    # Upload as Artifact
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.asset_name }}
-        path: build_output/
+        path: dist/${{ matrix.artifact_name }}
+
+    # Release (Only runs on tags) ---
+    - name: Release to GitHub
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/v')
+      with:
+        files: dist/${{ matrix.artifact_name }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

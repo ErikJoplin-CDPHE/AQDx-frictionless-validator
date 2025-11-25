@@ -93,7 +93,7 @@
             "description": "Three-digit AQS method code.",
             "example": "150",
             "constraints": {
-                "required": false,
+                "required": true,
                 "pattern": "^[0-9]{3}$"
             }
         },
