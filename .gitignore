@@ -220,3 +220,6 @@ notebooks
 
 # pyinstaller binary
 dist
+
+# repomix outputs
+repomix
