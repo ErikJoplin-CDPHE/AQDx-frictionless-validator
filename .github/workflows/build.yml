@@ -1,4 +1,4 @@
-name: Build and Release
+name: Build and Release Windows
 
 on:
   push:
@@ -8,23 +8,10 @@ on:
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: windows-2022
-            asset_name: aqdx-validator-windows
-            artifact_name: aqdx-validator-windows.exe
-            adddata: "src/aqdx-schema-tabular.json;."
-          - os: ubuntu-latest
-            asset_name: aqdx-validator-linux
-            artifact_name: aqdx-validator-linux
-            adddata: "src/aqdx-schema-tabular.json:."
-          - os: macos-latest
-            asset_name: aqdx-validator-macos
-            artifact_name: aqdx-validator-macos
-            adddata: "src/aqdx-schema-tabular.json:."
+    runs-on: windows-2022
+    defaults:
+      run:
+        shell: bash -l {0}
 
     steps:
       - name: Checkout code
@@ -43,26 +30,21 @@ jobs:
           clean-patched-environment-file: true
 
       - name: Run tests
-        shell: bash -l {0}
         run: |
           pytest tests/
 
       - name: Build with PyInstaller
-        shell: bash -l {0}
         run: |
           pyinstaller --onefile \
-            --name ${{ matrix.asset_name }} \
-            --add-data "${{ matrix.adddata }}" \
-            --exclude-module conda \
-            --exclude-module conda.cli \
-            --exclude-module conda.core \
+            --name aqdx-validator-windows \
+            --add-data "src/aqdx-schema-tabular.json;." \
             src/validate_aqdx.py
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.asset_name }}
-          path: dist/${{ matrix.artifact_name }}
+          name: aqdx-validator-windows
+          path: dist/aqdx-validator-windows.exe
 
   release:
     needs: build
@@ -72,18 +54,16 @@ jobs:
       contents: write
 
     steps:
-      - name: Download all artifacts
+      - name: Download artifact
         uses: actions/download-artifact@v4
         with:
+          name: aqdx-validator-windows
           path: artifacts
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          files: |
-            artifacts/aqdx-validator-windows/aqdx-validator-windows.exe
-            artifacts/aqdx-validator-linux/aqdx-validator-linux
-            artifacts/aqdx-validator-macos/aqdx-validator-macos
+          files: artifacts/aqdx-validator-windows.exe
           draft: false
           prerelease: false
         env:
