@@ -1,6 +1,6 @@
 # AQDx Local Validator
 
-A simple, standalone tool for validating air quality data against the [AQDx Standard (July 2024)](https://cdphe.colorado.gov/air-quality-data-exchange). 
+A simple, standalone tool for validating air quality data against the [AQDx Standard (July 2024)](https://cdphe.colorado.gov/air-quality-data-exchange).
 
 This tool allows local air agencies and community groups to verify their data files (CSV, XLSX, Parquet) locally before submission to CDPHE, ensuring all fields meet the strict type, pattern, and precision requirements of the AQDx schema.
 
@@ -9,21 +9,25 @@ This tool allows local air agencies and community groups to verify their data fi
 ### Windows Users
 **No installation required.**
 
-1.  **Download** the latest `aqdx-validator-windows.zip` from the [Releases Page](../../releases).
-2.  **Unzip** the file. You will see `aqdx-validator-windows.exe`.
-3.  **Drag and Drop** your data file (`.csv` or `.xlsx`) directly onto the `.exe` icon.
-4.  A window will open showing the validation results.
+1.  **Download** the latest `aqdx-validator-windows.exe` file from the [Releases Page](../../releases).
+2.  **Drag and Drop** your data file (`.csv`) directly onto the `.exe` icon.
+3.  A window will open showing the validation results.
     *   **Green Message:** Success! Your file is ready to submit.
     *   **Red Table:** Errors found. Fix the issues listed and try again.
 
-### For Mac/Linux Users
-1.  Download the binary for your OS from the [Releases Page](../../releases).
-2.  Open a terminal.
-3.  Run the tool against your file:
+### For Mac/Linux Users (Run from Source)
+We do not currently provide pre-built binaries for macOS or Linux. You can run the validator directly from the source code.
+
+1.  **Clone or Download** this repository.
+2.  Ensure you have **Python 3.12+** installed.
+3.  Install the required dependencies:
     ```
-    ./aqdx-validator-macos my_data.csv
+    pip install frictionless openpyxl pyarrow
     ```
-    *(Note: You may need to run `chmod +x aqdx-validator-macos` first to make it executable.)*
+4.  Run the validator script against your data file:
+    ```
+    python src/validate_aqdx.py /path/to/your_data.csv
+    ```
 
 ---
 
