@@ -1,5 +1,8 @@
 name: Build and Release AQDx Validator
 
+permissions:
+  contents: write
+
 on:
   # Trigger 1: Build & Test on every push to main (Continuous Integration)
   push:
