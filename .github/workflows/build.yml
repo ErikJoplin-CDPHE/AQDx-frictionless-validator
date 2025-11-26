@@ -1,75 +1,88 @@
-name: Build and Release AQDx Validator
-
-permissions:
-  contents: write
+name: Build and Release
 
 on:
-  # Trigger 1: Build & Test on every push to main (Continuous Integration)
   push:
-    branches: [ "main" ]
-  
-  # Trigger 2: Build, Test, AND Release when a tag starting with 'v' is pushed
-  create:
     tags:
-      - 'v*' 
+      - 'v*'
+  workflow_dispatch:
 
 jobs:
   build:
-    name: Build for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false  # Let all platforms complete even if one fails
       matrix:
         include:
           - os: windows-2022
             asset_name: aqdx-validator-windows
             artifact_name: aqdx-validator-windows.exe
-            adddata: "src/aqdx-schema-tabular.json;." 
+            adddata: "src/aqdx-schema-tabular.json;."
           - os: ubuntu-latest
             asset_name: aqdx-validator-linux
             artifact_name: aqdx-validator-linux
-            adddata: "src/aqdx-schema-tabular.json:."  
+            adddata: "src/aqdx-schema-tabular.json:."
           - os: macos-latest
             asset_name: aqdx-validator-macos
             artifact_name: aqdx-validator-macos
             adddata: "src/aqdx-schema-tabular.json:."
 
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
 
-    runs-on: ${{ matrix.os }}
-    defaults:
-      run:
+      - name: Set up environment
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          environment-file: environment.yaml
+          activate-environment: aqdx-validator
+          auto-activate-base: false
+          miniforge-variant: Miniforge3
+          auto-update-conda: false
+          remove-profiles: true
+          conda-solver: libmamba
+          clean-patched-environment-file: true
+
+      - name: Run tests
         shell: bash -l {0}
+        run: |
+          pytest tests/
+
+      - name: Build with PyInstaller
+        shell: bash -l {0}
+        run: |
+          export PYINSTALLER_IGNORE_CONDA=1
+          pyinstaller --onefile \
+            --name ${{ matrix.asset_name }} \
+            --add-data "${{ matrix.adddata }}" \
+            src/validate_aqdx.py
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}
+          path: dist/${{ matrix.artifact_name }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
 
     steps:
-    - uses: actions/checkout@v5
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
 
-    - name: Set up Conda
-      uses: conda-incubator/setup-miniconda@v3
-      with:
-        environment-file: environment.yaml
-        auto-activate-base: false
-        activate-environment: aqdx-validator
-        miniforge-variant: Miniforge3
-
-    - name: Run Automated Tests
-      env:
-        PYTHONPATH: ${{ github.workspace }}
-      run: pytest tests/
-
-    - name: Build with PyInstaller
-      run: |
-        pyinstaller --onefile --name ${{ matrix.asset_name }} --add-data "${{ matrix.add_data }}" src/validate_aqdx.py
-
-    # Upload as Artifact
-    - name: Upload Artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ matrix.asset_name }}
-        path: dist/${{ matrix.artifact_name }}
-
-    # Release (Only runs on tags) ---
-    - name: Release to GitHub
-      uses: softprops/action-gh-release@v1
-      if: startsWith(github.ref, 'refs/tags/v')
-      with:
-        files: dist/${{ matrix.artifact_name }}
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            artifacts/aqdx-validator-windows/aqdx-validator-windows.exe
+            artifacts/aqdx-validator-linux/aqdx-validator-linux
+            artifacts/aqdx-validator-macos/aqdx-validator-macos
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
