@@ -47,7 +47,7 @@ jobs:
         environment-file: environment.yaml
         auto-activate-base: false
         activate-environment: aqdx-validator
-        miniforge-variant: Mambaforge
+        miniforge-variant: Miniforge3
 
     - name: Run Automated Tests
       env:
