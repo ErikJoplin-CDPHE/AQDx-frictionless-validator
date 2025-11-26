@@ -50,10 +50,12 @@ jobs:
       - name: Build with PyInstaller
         shell: bash -l {0}
         run: |
-          export PYINSTALLER_IGNORE_CONDA=1
           pyinstaller --onefile \
             --name ${{ matrix.asset_name }} \
             --add-data "${{ matrix.adddata }}" \
+            --exclude-module conda \
+            --exclude-module conda.cli \
+            --exclude-module conda.core \
             src/validate_aqdx.py
 
       - name: Upload artifact
