@@ -5,6 +5,8 @@ dependencies:
   - python=3.12
   - frictionless
   - openpyxl
-  - pyinstaller=6.11.0
   - pytest
   - pyarrow
+  - pip
+  - pip:
+      - pyinstaller
