@@ -19,17 +19,16 @@ jobs:
           - os: windows-latest
             asset_name: aqdx-validator-windows
             artifact_name: aqdx-validator-windows.exe
-            add_data: 'src/aqdx-schema.json;.' 
-
+            adddata: "src/aqdx-schema-tabular.json;." 
           - os: ubuntu-latest
             asset_name: aqdx-validator-linux
             artifact_name: aqdx-validator-linux
-            add_data: 'src/aqdx-schema.json:.'
-
+            adddata: "src/aqdx-schema-tabular.json:."  
           - os: macos-latest
             asset_name: aqdx-validator-macos
             artifact_name: aqdx-validator-macos
-            add_data: 'src/aqdx-schema.json:.'
+            adddata: "src/aqdx-schema-tabular.json:."
+
 
     runs-on: ${{ matrix.os }}
     defaults:
@@ -37,7 +36,7 @@ jobs:
         shell: bash -l {0}
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v5
 
     - name: Set up Conda
       uses: conda-incubator/setup-miniconda@v3
