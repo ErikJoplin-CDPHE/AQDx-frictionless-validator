@@ -49,6 +49,8 @@ jobs:
 
       - name: Build with PyInstaller
         shell: bash -l {0}
+        env:
+          PYINSTALLER_IGNORE_CONDA: 1
         run: |
           pyinstaller --onefile \
             --name ${{ matrix.asset_name }} \
