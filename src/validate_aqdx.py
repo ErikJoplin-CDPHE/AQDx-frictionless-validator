@@ -1,11 +1,10 @@
-
 import json
 import os
 import sys
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
-from frictionless import Check, Resource, Schema, errors, validate
+from frictionless import Check, Detector, Resource, Schema, errors, validate
 
 
 def get_resource_path(relative_path):
@@ -112,7 +111,7 @@ class GeoLogicCheck(Check):
 
         in_bounds = (MIN_LAT <= lat_f <= MAX_LAT) and (MIN_LON <= lon_f <= MAX_LON)
 
-        if not in_bounds: ## TODO: chang print to yield a warning-level error  
+        if not in_bounds:  ## TODO: chang print to yield a warning-level error
             # Check if swapped
             swapped_ok = (MIN_LAT <= lon_f <= MAX_LAT) and (MIN_LON <= lat_f <= MAX_LON)
 
@@ -200,6 +199,7 @@ def main():
         report = validate(
             data_file_path,
             schema=schema,
+            detector=Detector(schema_sync=True),  # Add this line
             checks=[DecimalPrecisionCheck(), GeoLogicCheck()],
         )
 
