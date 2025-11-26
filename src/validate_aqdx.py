@@ -20,7 +20,7 @@ class DecimalPrecisionError(errors.CellError):
     code = "decimal-precision-error"
     name = "Decimal Precision Error"
     tags = ["#body"]
-    template = "Value {value} does not match Decimal({precision}, {scale}). {note}"
+    template = "Value does not match Decimal(precision, scale). {note}"
     description = "Value exceeds defined decimal precision or scale."
 
 
@@ -66,21 +66,16 @@ class DecimalPrecisionCheck(Check):
                 if scale > max_scale:
                     yield DecimalPrecisionError.from_row(
                         row,
-                        note=f"Scale {scale} > {max_scale}",
-                        field_name=field.name,
-                        value=val,
-                        precision=max_prec,
-                        scale=max_scale,
+                        note=f"Value '{val}' has {scale} decimal places, exceeds max scale of {max_scale} for Decimal({max_prec},{max_scale})",
+                        field_name=field.name,  # Changed from 'fieldname' to 'field_name'
                     )
-                elif (int_part + scale) > max_prec:
+                elif int_part + scale > max_prec:
                     yield DecimalPrecisionError.from_row(
                         row,
-                        note=f"Precision {int_part + scale} > {max_prec}",
-                        field_name=field.name,
-                        value=val,
-                        precision=max_prec,
-                        scale=max_scale,
+                        note=f"Value '{val}' has {int_part + scale} total digits, exceeds max precision of {max_prec} for Decimal({max_prec},{max_scale})",
+                        field_name=field.name,  # Changed from 'fieldname' to 'field_name'
                     )
+
             except (ValueError, InvalidOperation):
                 pass
 
