@@ -7,4 +7,6 @@ dependencies:
   - openpyxl
   - pytest
   - pyarrow
-  - pyinstaller
+  - pip
+  - pip:
+    - pyinstaller

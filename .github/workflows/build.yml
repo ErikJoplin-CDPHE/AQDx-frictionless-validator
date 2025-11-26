@@ -47,13 +47,9 @@ jobs:
         run: |
           pytest tests/
 
-      - name: Upgrade PyInstaller and Build
+      - name: Build with PyInstaller
         shell: bash -l {0}
         run: |
-
-          # Unset CONDA_PREFIX to prevent PyInstaller from crashing while scanning broken conda-meta
-          export CONDA_PREFIX=""
-          
           pyinstaller --onefile \
             --name ${{ matrix.asset_name }} \
             --add-data "${{ matrix.adddata }}" \
