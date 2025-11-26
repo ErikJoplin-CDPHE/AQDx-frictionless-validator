@@ -10,7 +10,7 @@ jobs:
   build:
     runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: false  # Let all platforms complete even if one fails
+      fail-fast: false
       matrix:
         include:
           - os: windows-2022
@@ -28,7 +28,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       - name: Set up environment
         uses: conda-incubator/setup-miniconda@v3
@@ -47,11 +47,13 @@ jobs:
         run: |
           pytest tests/
 
-      - name: Build with PyInstaller
+      - name: Upgrade PyInstaller and Build
         shell: bash -l {0}
-        env:
-          PYINSTALLER_IGNORE_CONDA: 1
         run: |
+
+          # Unset CONDA_PREFIX to prevent PyInstaller from crashing while scanning broken conda-meta
+          export CONDA_PREFIX=""
+          
           pyinstaller --onefile \
             --name ${{ matrix.asset_name }} \
             --add-data "${{ matrix.adddata }}" \
